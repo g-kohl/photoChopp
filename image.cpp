@@ -52,6 +52,7 @@ void Image::showImage(){
 	imshow("Display window", image_);
 }
 
+// operate on images
 void Image::invertImageVertical(){
     int height = size_.first;
     Mat temp_row;
@@ -127,7 +128,6 @@ Mat Image::quantization(int shades){
                     k++;
                 }
 
-                // cout << shadesList[k] << " " << shadesList[k-1] << " " << round((shadesList[k]+shadesList[k-1])/2) << endl;
                 quantized.at<uchar>(i, j) = uchar(round((shadesList[k]+shadesList[k-1])/2));
             }
         }

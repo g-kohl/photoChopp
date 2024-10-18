@@ -1,10 +1,6 @@
 #pragma once
 
 #include "/usr/local/include/opencv4/opencv2/opencv.hpp"
-
-// #include <opencv2/core.hpp>
-// #include <opencv2/imgcodecs.hpp>
-// #include <opencv2/highgui.hpp>
 #include <iostream>
 
 class Image {
