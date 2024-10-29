@@ -26,9 +26,9 @@ public:
 
 	// operate on images
 	void invertImageVertical();
-	void invertImageHorizontal();
-    	cv::Mat RGBtoGrayscale();
-	cv::Mat quantization(int shades);
+    void invertImageHorizontal();
+    void RGBtoGrayscale();
+    void quantization(int shades);
 
 private:
 	cv::Mat image_;

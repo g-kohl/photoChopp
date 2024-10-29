@@ -1,4 +1,5 @@
 #include "image.hpp"
+
 #include <opencv2/highgui.hpp>
 
 using namespace std;
@@ -75,37 +76,54 @@ void Image::invertImageHorizontal(){
     }
 }
 
-Mat Image::RGBtoGrayscale(){
-    int height = size_.first, width = size_.second;
-    Mat grayscale(height, width, CV_8UC1, Scalar(0));
-    uchar l;
+// Mat Image::RGBtoGrayscale(){
+//     int height = size_.first, width = size_.second;
+//     Mat grayscale(height, width, CV_8UC1, Scalar(0));
+//     uchar l;
+
+//     for(int i=0; i<height; i++){
+//         for(int j=0; j<width; j++){
+//             Vec3b pixel = image_.at<Vec3b>(i, j);
+//             l = 0.114*pixel[0] + 0.587*pixel[1] + 0.299*pixel[2];
+//             grayscale.at<uchar>(i, j) = l;
+//         }
+//     }
+
+//     return grayscale;
+// }
+
+void Image::RGBtoGrayscale(){
+    int height = size_.first, width = size_.second, luminance;
+    Vec3b pixel;
+    Mat grayscale(height, width, CV_8UC3);
 
     for(int i=0; i<height; i++){
         for(int j=0; j<width; j++){
-            Vec3b pixel = image_.at<Vec3b>(i, j);
-            l = 0.114*pixel[0] + 0.587*pixel[1] + 0.299*pixel[2];
-            grayscale.at<uchar>(i, j) = l;
+            pixel = image_.at<Vec3b>(i, j);
+            luminance = 0.114 * pixel[0] + 0.587 * pixel[1] + 0.299 * pixel[2];
+
+            grayscale.at<Vec3b>(i, j) = Vec3b(luminance, luminance, luminance);
         }
     }
 
-    return grayscale;
+    image_ = grayscale.clone();
 }
 
-Mat Image::quantization(int shades){
-    int height = size_.first, width = size_.second, intP;
-    float shadesList[shades+1], darkestPixel = 255, brightestPixel = 0, shadesQuantity, binSize, floatP;
-    Mat quantized(height, width, CV_8UC1, Scalar(0));
-    uchar p;
+void Image::quantization(int shades){
+    int height = size_.first, width = size_.second, intPixel;
+    float shadesList[shades+1], darkestPixel = 255, brightestPixel = 0, shadesQuantity, binSize, floatPixel;
+    Vec3b pixel;
+    Mat quantized(height, width, CV_8UC3);
 
     for(int i=0; i<height; i++){
         for(int j=0; j<height; j++){
-            p = image_.at<uchar>(i, j);
-            intP = int(p);
+            pixel = image_.at<Vec3b>(i, j);
+            intPixel = int(pixel[1]);
 
-            if(intP < darkestPixel)
-                darkestPixel = intP;
-            if(intP > brightestPixel)
-                brightestPixel = intP;
+            if(intPixel < darkestPixel)
+                darkestPixel = intPixel;
+            if(intPixel > brightestPixel)
+                brightestPixel = intPixel;
         }
     }
 
@@ -121,19 +139,18 @@ Mat Image::quantization(int shades){
         for(int i=0; i<height; i++){
             for(int j=0; j<width; j++){
                 int k = 0;
-                p = image_.at<uchar>(i,j);
-                floatP = float(p);
+                pixel = image_.at<Vec3b>(i, j);
+                floatPixel = float(pixel[1]);
 
-                while(floatP > shadesList[k]){
+                while(floatPixel > shadesList[k]){
                     k++;
                 }
 
-                quantized.at<uchar>(i, j) = uchar(round((shadesList[k]+shadesList[k-1])/2));
+                intPixel = round((shadesList[k]+shadesList[k-1])/2);
+                quantized.at<Vec3b>(i, j) = Vec3b(intPixel, intPixel, intPixel);
             }
         }
 
-        return quantized;
+        image_ = quantized.clone();
     }
-
-    return image_;
 }
