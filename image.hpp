@@ -1,7 +1,10 @@
 #pragma once
 
-#include "/usr/local/include/opencv4/opencv2/opencv.hpp"
 #include <iostream>
+#include <opencv2/highgui.hpp>
+#include <QVector>
+
+#include "/usr/local/include/opencv4/opencv2/opencv.hpp"
 
 class Image {
 public:
@@ -10,7 +13,7 @@ public:
 	Image(Image &copy);
 	//~Image();
 
-	// operate on attributes
+	// attributes
 	void setImage(cv::Mat image);
 	cv::Mat getImage();
 	void setName(std::string &name);
@@ -18,17 +21,28 @@ public:
 	void setSize(int height, int width);
 	std::pair<int, int> getSize();
 
-	// operate on files
+	// files
 	std::string getImagePath();
 	cv::Mat loadImage();
 	void saveImage();
 	void showImage();
 
-	// operate on images
-	void invertImageVertical();
-    void invertImageHorizontal();
+	// options
+	QVector<int> histogram();
+
+	// basic processig
     void RGBtoGrayscale();
     void quantization(int shades);
+	void adjustBrightness(int delta);
+	void adjustContrast(int delta);
+	void negative();
+
+	// change formatting
+	void invertVertical();
+    void invertHorizontal();
+	void rotate(bool clockwise);
+	void zoomOut(int sy, int sx);
+	void zoomIn();
 
 private:
 	cv::Mat image_;

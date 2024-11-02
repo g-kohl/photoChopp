@@ -1,25 +1,53 @@
 #pragma once
 
+#include <algorithm>
 #include <QApplication>
-#include <QPushButton>
-#include <QWidget>
-#include <QLabel>
-#include <QVBoxLayout>
-#include <QHBoxLayout>
+#include <QEvent>
 #include <QFileDialog>
+#include <QGroupBox>
+#include <QHBoxLayout>
 #include <QInputDialog>
+#include <QLabel>
+#include <QMainWindow>
 #include <QMessageBox>
+#include <QPainter>
+#include <QPushButton>
+#include <QVBoxLayout>
+#include <QVector>
+#include <QWidget>
 
 #include "image.hpp"
 
-void loadImage(QLabel *loadedImage, QLabel *processedImage, Image &loadImg, Image &saveImg);
+// files
+void loadImage(QLabel *loadedImageLabel, QLabel *processedImageLabel, Image &loadedImage, Image &savedImage);
 
-void saveImage(QWidget *parent, QLabel *imageLabel, Image &saveImg);
+void saveImage(QWidget *parent, QLabel *imageLabel, Image &savedImage);
 
-void flipVertical(QLabel *imageLabel, Image &loadImg, Image &saveImg);
+// options
+void restoreImage(QLabel *processedImageLabel, Image &loadedImage, Image &savedImage);
+void generateHistogram(QWidget *parent, QLabel *imageLabel, Image &savedImage);
 
-void flipHorizontal(QLabel *imageLabel, Image &loadImg, Image &saveImg);
+// basic processing
+void applyRGBtoGrayscale(QLabel *processedImageLabel, Image &savedImage);
 
-void applyGrayscale(QLabel *imageLabel, Image &loadImg, Image &saveImg);
+void applyQuantization(QWidget *parent, QLabel *processedImageLabel, Image &loadedImage, Image &savedImage);
 
-void applyQuantization(QWidget *parent, QLabel *imageLabel, Image &loadImg, Image &saveImg);
+void applyAdjustBrightness(QWidget *parent, QLabel *processedImageLabel, Image &loadedImage, Image &savedImage);
+
+void applyAdjustContrast(QWidget *parent, QLabel *processedImageLabel, Image &loadedImage, Image &savedImage);
+
+void applyNegative(QWidget *parent, QLabel *processedImageLabel, Image &savedImage);
+
+// change formatting
+void applyInvertVertical(QLabel *processedImageLabel, Image &loadedImage, Image &savedImage);
+
+void applyInvertHorizontal(QLabel *processedImageLabel, Image &loadedImage, Image &savedImage);
+
+void applyRotate(QWidget *parent, QLabel *processedImageLabel, Image &savedImage);
+
+void applyZoomOut(QWidget *parent, QLabel *processedImageLabel, Image &loadedImage, Image &savedImage);
+
+void applyZoomIn(QWidget *parent, QLabel *processedImageLabel, Image &savedImage);
+
+// auxiliar
+void displayImage(QLabel *imageLabel, Image &displayedImage);
