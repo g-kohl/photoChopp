@@ -2,6 +2,7 @@
 
 using namespace std;
 using namespace cv;
+using namespace QtCharts;
 
 // files
 void loadImage(QLabel *loadedImageLabel, QLabel *processedImageLabel, Image &loadedImage, Image &savedImage){
@@ -26,7 +27,7 @@ void loadImage(QLabel *loadedImageLabel, QLabel *processedImageLabel, Image &loa
         loadedImageLabel->setAlignment(Qt::AlignCenter);
         loadedImageLabel->setPixmap(image.scaled(loadedImageLabel->size(), Qt::KeepAspectRatio));
         processedImageLabel->setAlignment(Qt::AlignCenter);
-        processedImageLabel->setPixmap(image.scaled(loadedImageLabel->size(), Qt::KeepAspectRatio));
+        processedImageLabel->setPixmap(image.scaled(processedImageLabel->size(), Qt::KeepAspectRatio));
     }
 }
 
@@ -55,15 +56,31 @@ void restoreImage(QLabel *processedImageLabel, Image &loadedImage, Image &savedI
     processedImageLabel->setPixmap(image.scaled(processedImageLabel->size(), Qt::KeepAspectRatio));
 }
 
-void generateHistogram(QWidget *parent, QLabel *imageLabel, Image &savedImage){
-    QVector<int> shades = savedImage.histogram();
+void loadNextImage(QLabel *loadedImageLabel, QLabel *processedImageLabel, Image &loadedImage, Image &savedImage){
+    QString fileName = QFileDialog::getOpenFileName(nullptr, "Load source image", "", "Images (*.png *.jpg *.bmp)");
+    string imageName = fileName.toStdString();
+    Mat matImage = imread(imageName, IMREAD_COLOR);
+
+    if(matImage.empty()){
+        cout << "Error: empty image";
+        return;
+    }
+
+    loadedImage.RGBtoGrayscale();
+
+    savedImage.setImage(matImage);
+    savedImage.setSize(matImage.rows, matImage.cols);
+    savedImage.RGBtoGrayscale();
+
+    displayImage(loadedImageLabel, loadedImage, true);
+    displayImage(processedImageLabel, savedImage, true);
 }
 
 // basic processing
 void applyRGBtoGrayscale(QLabel *processedImageLabel, Image &savedImage){
     savedImage.RGBtoGrayscale();
 
-    displayImage(processedImageLabel, savedImage);
+    displayImage(processedImageLabel, savedImage, true);
 }
 
 void applyQuantization(QWidget *parent, QLabel *processedImageLabel, Image &loadedImage, Image &savedImage){
@@ -77,7 +94,7 @@ void applyQuantization(QWidget *parent, QLabel *processedImageLabel, Image &load
     savedImage.RGBtoGrayscale();
     savedImage.quantization(shades);
 
-    displayImage(processedImageLabel, savedImage);
+    displayImage(processedImageLabel, savedImage, true);
 }
 
 void applyAdjustBrightness(QWidget *parent, QLabel *processedImageLabel, Image &loadedImage, Image &savedImage){
@@ -90,7 +107,7 @@ void applyAdjustBrightness(QWidget *parent, QLabel *processedImageLabel, Image &
     savedImage.setImage(loadedImage.getImage());
     savedImage.adjustBrightness(delta);
 
-    displayImage(processedImageLabel, savedImage);
+    displayImage(processedImageLabel, savedImage, true);
 }
 
 void applyAdjustContrast(QWidget *parent, QLabel *processedImageLabel, Image &loadedImage, Image &savedImage){
@@ -98,31 +115,31 @@ void applyAdjustContrast(QWidget *parent, QLabel *processedImageLabel, Image &lo
     int delta = QInputDialog::getInt(parent, "Adjust Contrast", "Enter the contrast variation:", 0, -2147483647, 2147483647, 1, &ok);
 
     if(!ok)
-        return;    
+        return;
 
     savedImage.setImage(loadedImage.getImage());
     savedImage.adjustContrast(delta);
 
-    displayImage(processedImageLabel, savedImage);
+    displayImage(processedImageLabel, savedImage, true);
 }
 
-void applyNegative(QWidget *parent, QLabel *processedImageLabel, Image &savedImage){
+void applyNegative(QLabel *processedImageLabel, Image &savedImage){
     savedImage.negative();
     
-    displayImage(processedImageLabel, savedImage);
+    displayImage(processedImageLabel, savedImage, true);
 }
 
 // change formatting
-void applyInvertVertical(QLabel *processedImageLabel, Image &loadedImage, Image &savedImage){
+void applyInvertVertical(QLabel *processedImageLabel, Image &savedImage){
     savedImage.invertVertical();
 
-    displayImage(processedImageLabel, savedImage);
+    displayImage(processedImageLabel, savedImage, true);
 }
 
-void applyInvertHorizontal(QLabel *processedImageLabel, Image &loadedImage, Image &savedImage){
+void applyInvertHorizontal(QLabel *processedImageLabel, Image &savedImage){
     savedImage.invertHorizontal();
     
-    displayImage(processedImageLabel, savedImage);
+    displayImage(processedImageLabel, savedImage, true);
 }
 
 void applyRotate(QWidget *parent, QLabel *processedImageLabel, Image &savedImage){
@@ -136,7 +153,7 @@ void applyRotate(QWidget *parent, QLabel *processedImageLabel, Image &savedImage
         savedImage.rotate(false);
     }
     
-    displayImage(processedImageLabel, savedImage);
+    displayImage(processedImageLabel, savedImage, true);
 }
 
 void applyZoomOut(QWidget *parent, QLabel *processedImageLabel, Image &loadedImage, Image &savedImage){
@@ -156,21 +173,130 @@ void applyZoomOut(QWidget *parent, QLabel *processedImageLabel, Image &loadedIma
     savedImage.setSize(loadedImage.getSize().first, loadedImage.getSize().second);
     savedImage.zoomOut(sy, sx);
 
-    displayImage(processedImageLabel, savedImage);
+    displayImage(processedImageLabel, savedImage, false);
 }
 
 void applyZoomIn(QWidget *parent, QLabel *processedImageLabel, Image &savedImage){
-    savedImage.zoomIn();
+    bool ok;
+    int zoomQuantity = QInputDialog::getInt(parent, "Zoom In", "Enter zooms quantity:", 0, -2147483647, 2147483647, 1, &ok);
+
+    if(!ok)
+        return;
+
+    Image zoomedImage(savedImage);
+
+    for(int i=0; i<zoomQuantity; i++)
+        zoomedImage.zoomIn();
+
+    QImage imgQ(zoomedImage.getImage().data, zoomedImage.getImage().cols, zoomedImage.getImage().rows, zoomedImage.getImage().step, QImage::Format_RGB888);
+    QPixmap image = QPixmap::fromImage(imgQ.rgbSwapped());
+
+    QDialog *zoomedWindow = new QDialog;
+    zoomedWindow->setWindowTitle("Zoomed In Image");
+
+    QLabel *imageLabel = new QLabel;
+    imageLabel->setFixedSize(image.size());
+    imageLabel->setPixmap(image);
     
-    displayImage(processedImageLabel, savedImage);
+    QVBoxLayout *layout = new QVBoxLayout;
+    layout->addWidget(imageLabel);
+    zoomedWindow->setLayout(layout);
+    zoomedWindow->exec();
 }
 
-// auxiliar
-void displayImage(QLabel *imageLabel, Image &displayedImage){
+// convolution
+void applyConvolution(QLabel *processedImageLabel, Image &savedImage, std::vector<float> kernel, bool grayscale, bool clamping){
+    if(grayscale)
+        savedImage.RGBtoGrayscale();
+
+    savedImage.convolution(kernel, clamping);
+
+    displayImage(processedImageLabel, savedImage, true);
+}
+
+// histogram
+void showHistogram(QLabel *processedImageLabel, Image &savedImage){
+    savedImage.RGBtoGrayscale();
+    displayImage(processedImageLabel, savedImage, true);
+    QVector<int> shades = savedImage.histogram();
+
+    QBarSet *barSet = new QBarSet("Shades");
+
+    for(int value : shades){
+        *barSet << value;
+    }
+
+    barSet->setColor(QColor("black"));
+
+    QBarSeries *series = new QBarSeries();
+    series->append(barSet);
+    series->setBarWidth(2.0);
+
+    QChart *chart = new QChart();
+    chart->addSeries(series);
+    chart->setTitle("Histogram");
+    chart->setAnimationOptions(QChart::SeriesAnimations);
+
+    QValueAxis *axisX = new QValueAxis();
+    axisX->setRange(0, shades.size()-1);
+    axisX->setTitleText("Shades");
+    chart->addAxis(axisX, Qt::AlignBottom);
+    series->attachAxis(axisX);
+
+    QValueAxis *axisY = new QValueAxis();
+    axisY->setRange(0, *std::max_element(shades.begin(), shades.end()));
+    axisY->setTitleText("Frequency");
+    chart->addAxis(axisY, Qt::AlignLeft);
+    series->attachAxis(axisY);
+
+    QChartView *chartView = new QChartView(chart);
+    chartView->setRenderHint(QPainter::Antialiasing);
+
+    QWidget *histogramWindow = new QWidget;
+    histogramWindow->setWindowTitle("Histogram");
+
+    QVBoxLayout *layout = new QVBoxLayout;
+    layout->addWidget(chartView);
+    histogramWindow->setLayout(layout);
+    histogramWindow->resize(800, 600);
+    histogramWindow->show();
+}
+
+void applyEqualization(QLabel *processedImageLabel, Image &savedImage){
+    savedImage.RGBtoGrayscale();
+    savedImage.equalization();
+    
+    displayImage(processedImageLabel, savedImage, true);
+}
+
+void applyHistogramMatching(QLabel *processedImageLabel, Image &loadedImage, Image &savedImage){
+    savedImage.matching(loadedImage);
+
+    displayImage(processedImageLabel, savedImage, true);
+}
+
+
+// auxiliary
+void displayImage(QLabel *imageLabel, Image &displayedImage, bool scale){
     QImage imgQ(displayedImage.getImage().data, displayedImage.getImage().cols, displayedImage.getImage().rows, displayedImage.getImage().step, QImage::Format_RGB888);
     QPixmap image = QPixmap::fromImage(imgQ.rgbSwapped());
 
     imageLabel->setAlignment(Qt::AlignCenter);
-    imageLabel->setPixmap(image.scaled(imageLabel->size(), Qt::KeepAspectRatio));
-    // imageLabel->setPixmap(image);
+
+    if(scale){
+        imageLabel->setPixmap(image.scaled(imageLabel->size(), Qt::KeepAspectRatio));
+    }
+    else{
+        imageLabel->setPixmap(image);
+    }
+}
+
+vector<float> readInputs(QVector<QLineEdit*> convolutionInputs){
+    vector<float> kernel;
+
+    for(int i=0; i<INPUTS_NUM; i++){
+        kernel.push_back(convolutionInputs[i]->text().toFloat());
+    }
+
+    return kernel;
 }

@@ -51,21 +51,6 @@ void Image::showImage(){
 	imshow("Display window", image_);
 }
 
-// options
-QVector<int> Image::histogram(){
-    int height = size_.first, width = size_.second, shade;
-    QVector<int> shades(256, 0);
-
-    for(int i=0; i<height; i++){
-        for(int j=0; j<width; j++){
-            shade = int(image_.at<Vec3b>(i, j)[0]);
-            shades[shade]++;
-        }
-    }
-
-    return shades;
-}
-
 // basic processing
 void Image::RGBtoGrayscale(){
     int height = size_.first, width = size_.second, luminance;
@@ -234,10 +219,7 @@ void Image::zoomOut(int sy, int sx){
 
     for(int i=0; i<zoomedHeight; i++){
         for(int j=0; j<zoomedWidth; j++){
-            averageRed = 0;
-            averageGreen = 0;
-            averageBlue = 0;
-            pixelsCounter = 0;
+            averageRed = averageGreen = averageBlue = pixelsCounter = 0;
 
             for(int k=0; k<sy; k++){
                 if((sy*i)+k >= int(height))
@@ -293,4 +275,134 @@ void Image::zoomIn(){
 
     image_ = zoomed.clone();
     size_ = {zoomedHeight, zoomedWidth};
+}
+
+// convolution
+void Image::convolution(vector<float> kernel, bool clamping){
+    int height = size_.first, width = size_.second, kernelIndexCounter, resultRed, resultGreen, resultBlue;
+    Mat filtered(height, width, CV_8UC3);
+
+    for(int i=1; i<height-1; i++){
+        for(int j=1; j<width-1; j++){
+            kernelIndexCounter = resultRed = resultGreen = resultBlue = 0;
+
+            for(int k=-1; k<2; k++){
+                for(int l=-1; l<2; l++){
+                    resultRed += round(kernel[kernelIndexCounter] * float(image_.at<Vec3b>(i+k, j+l)[2]));
+                    resultGreen += round(kernel[kernelIndexCounter] * float(image_.at<Vec3b>(i+k, j+l)[1]));
+                    resultBlue += round(kernel[kernelIndexCounter] * float(image_.at<Vec3b>(i+k, j+l)[0]));
+
+                    kernelIndexCounter++;
+                }
+            }
+
+            filtered.at<Vec3b>(i, j)[2] = saturation(resultRed, clamping);
+            filtered.at<Vec3b>(i, j)[1] = saturation(resultGreen, clamping);
+            filtered.at<Vec3b>(i, j)[0] = saturation(resultBlue, clamping);
+        }
+    }
+
+    image_ = filtered.clone();
+}
+
+// histogram
+QVector<int> Image::histogram(){
+    int height = size_.first, width = size_.second, shade;
+    QVector<int> shades(256, 0);
+
+    for(int i=0; i<height; i++){
+        for(int j=0; j<width; j++){
+            shade = int(image_.at<Vec3b>(i, j)[0]);
+            shades[shade]++;
+        }
+    }
+
+    return shades;
+}
+
+void Image::equalization(){
+    int height = size_.first, width = size_.second;
+    float scallingFactor = 255.0 / (height * width);
+    vector<int> histogram(256), cumulativeHistogram(256);
+
+    computeHistogram(histogram, 0);
+    normalizeAndAccumulate(histogram, cumulativeHistogram, scallingFactor);
+
+    for(int i=0; i<height; i++){
+        for(int j=0; j<width; j++){
+            image_.at<Vec3b>(i, j)[0] = cumulativeHistogram[image_.at<Vec3b>(i, j)[0]];
+            image_.at<Vec3b>(i, j)[1] = cumulativeHistogram[image_.at<Vec3b>(i, j)[1]];
+            image_.at<Vec3b>(i, j)[2] = cumulativeHistogram[image_.at<Vec3b>(i, j)[2]];
+        }
+    }
+}
+
+void Image::matching(Image target){
+    int heightTarget = target.getSize().first, widthTarget = target.getSize().second, heightSource = size_.first, widthSource = size_.second;
+    float scallingFactorTarget = 255.0 / (heightTarget * widthTarget), scallingFactorSource = 255.0 / (heightSource * widthSource);
+    vector<int> histogramSource(256), histogramTarget(256), histogramSourceCumulative(256), histogramTargetCumulative(256), histogramMatching(256);
+
+    computeHistogram(histogramTarget, 0);
+    computeHistogram(histogramSource, 0);
+
+    normalizeAndAccumulate(histogramTarget, histogramTargetCumulative, scallingFactorTarget);
+    normalizeAndAccumulate(histogramSource, histogramSourceCumulative, scallingFactorSource);
+
+    for(int i=0; i<256; i++){
+        histogramMatching[i] = findClosestShade(histogramSourceCumulative, histogramTargetCumulative, i);
+    }
+
+    for(int i=0; i<heightSource; i++){
+        for(int j=0; j<widthSource; j++){
+            image_.at<Vec3b>(i, j)[0] = image_.at<Vec3b>(i, j)[1] = image_.at<Vec3b>(i, j)[2] = histogramMatching[image_.at<Vec3b>(i, j)[0]];
+        }
+    }
+}
+
+// auxiliary
+int Image::saturation(int channel, bool clamping){
+    if(clamping)
+        channel += 127;
+
+    if(channel < 0)
+        return 0;
+    if(channel > 255)
+        return 255;
+    
+    return channel;
+}
+
+void Image::computeHistogram(vector<int> &histogram, int channel){
+    int height = size_.first, width = size_.second, shade;
+
+    for(int i=0; i<height; i++){
+        for(int j=0; j<width; j++){
+            shade = int(image_.at<Vec3b>(i, j)[channel]);
+            histogram[shade]++;
+        }
+    }
+}
+
+void Image::normalizeAndAccumulate(vector<int> &histogram, vector<int> &result, float scallingFactor){
+    result[0] = scallingFactor * histogram[0];
+
+    for(int i=1; i<256; i++){
+        result[i] = result[i-1] + scallingFactor * histogram[i];
+    }
+
+}
+
+int Image::findClosestShade(vector<int> histogramSourceCumulative, vector<int> histogramTargetCumulative, int shade){
+    int targetValue = histogramSourceCumulative[shade], closest = 0, difference, minimumDifference = abs(targetValue - histogramTargetCumulative[0]);
+
+    for(int i=1; i<256; i++){
+        difference = abs(targetValue - histogramTargetCumulative[i]);
+        
+        if(difference < minimumDifference){
+            minimumDifference = difference;
+            closest = i;
+        }
+    }
+    
+    return closest;
 }

@@ -27,9 +27,6 @@ public:
 	void saveImage();
 	void showImage();
 
-	// options
-	QVector<int> histogram();
-
 	// basic processig
     void RGBtoGrayscale();
     void quantization(int shades);
@@ -43,6 +40,20 @@ public:
 	void rotate(bool clockwise);
 	void zoomOut(int sy, int sx);
 	void zoomIn();
+
+	// convolution
+	void convolution(std::vector<float> kernel, bool clamping);
+
+	// histogram
+	QVector<int> histogram();
+	void equalization();
+	void matching(Image source);
+
+	// auxiliary
+	int saturation(int channel, bool clamping);
+	void computeHistogram(std::vector<int> &histogram, int channel);
+	void normalizeAndAccumulate(std::vector<int> &histogram, std::vector<int> &result, float scallingFactor);
+	int findClosestShade(std::vector<int> histogramSourceCumulative, std::vector<int> histogramTargetCumulative, int shade);
 
 private:
 	cv::Mat image_;
